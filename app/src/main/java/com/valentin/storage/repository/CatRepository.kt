@@ -1,20 +1,17 @@
 package com.valentin.storage.repository
 
 import android.content.ContentValues
-import android.database.sqlite.SQLiteDatabase
-import android.database.sqlite.SQLiteException
 import android.util.Log
 import androidx.lifecycle.LiveData
-import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
+import androidx.room.OnConflictStrategy
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.valentin.storage.models.AppDatabase
 import com.valentin.storage.models.Cat
-import com.valentin.storage.models.DatabaseOpenHelper
 import javax.inject.Inject
 
 class CatRepository @Inject constructor(
     private val database: AppDatabase,
-    private val dbHelper: DatabaseOpenHelper
 ) {
 
     private val states = mapOf<String, IDatabaseState>(
@@ -22,24 +19,6 @@ class CatRepository @Inject constructor(
         "sqlite" to SQLiteState()
     )
     private var state = states["room"]!!
-//    var mediatorLiveData: MediatorLiveData<List<Cat>> = MediatorLiveData<List<Cat>>()
-//
-//    init {
-//        mediatorLiveData.addSource(state.readCats()) {
-//
-//        }
-////        when (state) {
-////            is SQLiteState -> {
-////                mediatorLiveData.addSource(state.readCats()) {
-////
-////                }
-////            }
-////            is RoomState -> {
-////
-////            }
-////        }
-//
-//    }
 
     fun useRoom() {
         Log.d(TAG, "Room state")
@@ -60,8 +39,8 @@ class CatRepository @Inject constructor(
         state.addCat(cat)
     }
 
-    fun readCats(): LiveData<List<Cat>> {
-        return state.readCats()
+    fun readCats(name: String?, age: Int?, breed: String?): LiveData<List<Cat>> {
+        return state.readCats(name, age, breed)
     }
 
     fun readCat(id: Int): Cat?
@@ -79,7 +58,7 @@ class CatRepository @Inject constructor(
 
     sealed interface IDatabaseState {
         fun addCat(cat: Cat)
-        fun readCats(): LiveData<List<Cat>>
+        fun readCats(name: String?, age: Int?, breed: String?): LiveData<List<Cat>>
         fun readCat(id: Int): Cat?
         fun updateCat(cat: Cat)
         fun deleteCat(cat: Cat)
@@ -92,9 +71,13 @@ class CatRepository @Inject constructor(
             database.catDao().insertCat(cat)
         }
 
-        override fun readCats(): LiveData<List<Cat>> {
+        override fun readCats(name: String?, age: Int?, breed: String?): LiveData<List<Cat>> {
             Log.d(TAG, "Room read cats")
             return database.catDao().query()
+//            return if (age == null)
+//                database.catDao().query(name?:"", breed?:"")
+//            else
+//                database.catDao().query(name?:"", age, breed?:"")
         }
 
         override fun updateCat(cat: Cat) {
@@ -119,13 +102,15 @@ class CatRepository @Inject constructor(
 
     inner class SQLiteState: IDatabaseState {
         var data = MutableLiveData<List<Cat>>()
-
-        private val db: SQLiteDatabase = try {
-            dbHelper.writableDatabase
+        private val db: SupportSQLiteDatabase by lazy {
+            database.openHelper.writableDatabase
         }
-        catch (ex: SQLiteException) {
-            dbHelper.readableDatabase
-        }
+//        private val db: SQLiteDatabase = try {
+//            dbHelper.writableDatabase
+//        }
+//        catch (ex: SQLiteException) {
+//            dbHelper.readableDatabase
+//        }
 
         override fun addCat(cat: Cat) {
             Log.d(TAG, "SQLite add cat")
@@ -135,20 +120,14 @@ class CatRepository @Inject constructor(
                 put("name", cat.name)
                 put("breed", cat.breed)
             }
-            val id = db.insert("Cat", "_", cv)
+            val id = db.insert("Cat", OnConflictStrategy.REPLACE, cv)
             updateData()
         }
 
         private fun selectCats(): List<Cat> {
             val result = ArrayList<Cat>()
             //Log.d(TAG, "Start read sqlite")
-            val cursor = db.query("Cat",
-                null,
-                null,
-                null,
-                null,
-                null,
-                null)
+            val cursor = db.query("Select * from cat")
             if (cursor.moveToFirst())
                 do {
                     val cat = Cat(
@@ -164,7 +143,7 @@ class CatRepository @Inject constructor(
             return result
         }
 
-        override fun readCats(): LiveData<List<Cat>> {
+        override fun readCats(name: String?, age: Int?, breed: String?): LiveData<List<Cat>> {
             Log.d(TAG, "SQLite read cats")
             val catList = selectCats()
             data.value = catList
@@ -193,13 +172,14 @@ class CatRepository @Inject constructor(
         override fun readCat(id: Int): Cat? {
             Log.d(TAG, "SQLite read cat")
             var result: Cat? = null
-            val cursor = db.query("Cat",
-                null,
-                "id=?",
-                arrayOf(id.toString()),
-                null,
-                null,
-                null)
+            val cursor = db.query("Select * from cat where id = $id")
+//            val cursor = db.query("Cat",
+//                null,
+//                "id=?",
+//                arrayOf(id.toString()),
+//                null,
+//                null,
+//                null)
             if (cursor.moveToFirst())
                 do {
                     val cat = Cat(

@@ -52,9 +52,7 @@ class CatsFragment : Fragment(), CatListener {
                     liveData.removeObservers(viewLifecycleOwner)
                     liveData = viewModel.cats
                     liveData.observe(viewLifecycleOwner) {
-                        Log.d(TAG, "Livedata observe")
-                        Log.d(TAG, it.toString())
-                        adapter.submitList(it)
+                        observe(it)
                     }
                 }
             }
@@ -71,9 +69,7 @@ class CatsFragment : Fragment(), CatListener {
 
         liveData = viewModel.cats
         liveData.observe(viewLifecycleOwner) {
-            Log.d(TAG, "Livedata observe")
-            Log.d(TAG, it.toString())
-            adapter.submitList(it)
+            observe(it)
         }
 
 
@@ -124,5 +120,32 @@ class CatsFragment : Fragment(), CatListener {
 
     private companion object {
         const val TAG = "CatsFragment"
+    }
+
+    private fun observe(it: List<Cat>) {
+        Log.d(TAG, "Livedata observe")
+        //Log.d(TAG, it.toString())
+        val list = it.filter {
+            viewModel.age?.let {  age ->
+                if (it.age != age)
+                    return@filter false
+            }
+            viewModel.breed?.let { breed ->
+                if (breed == "")
+                    return@let
+                if (!it.breed.contains(breed, ignoreCase = true))
+                    return@filter false
+            }
+            viewModel.name?.let { name ->
+                if (name == "")
+                    return@let
+                if (!it.name.contains(name, ignoreCase = true))
+                    return@filter false
+            }
+            return@filter true
+        }
+        Log.d(TAG, "All: $it")
+        Log.d(TAG, "Filtered: $list")
+        adapter.submitList(list)
     }
 }

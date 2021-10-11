@@ -4,24 +4,34 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.preference.PreferenceManager
 import com.valentin.storage.models.AppDatabase
-import com.valentin.storage.models.DatabaseOpenHelper
 import com.valentin.storage.repository.CatRepository
 import dagger.Module
 import dagger.Provides
-import javax.inject.Singleton
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 
 @Module
 object AppModule {
 
     @Provides
     fun provideDatabase(context: Context): AppDatabase {
-        return AppDatabase.getDatabase(context)
+        val db = AppDatabase.getDatabase(context)
+        GlobalScope.launch(Dispatchers.IO) {
+            db.catDao().query("", "")
+        }
+        return db
     }
 
-    @Provides
-    fun provideDBHelper(context: Context): DatabaseOpenHelper {
-        return DatabaseOpenHelper(context)
-    }
+//    @Provides
+//    fun provideDBHelper(database: AppDatabase): SupportSQLiteDatabase {
+//        return try {
+//            database.openHelper.writableDatabase
+//        }
+//        catch (ex: Exception) {
+//            database.openHelper.readableDatabase
+//        }
+//    }
 
 
     @Provides
@@ -31,7 +41,7 @@ object AppModule {
 
     @Provides
 //    @Singleton
-    fun provideCatRepository(database: AppDatabase, dbHelper: DatabaseOpenHelper): CatRepository {
-        return CatRepository(database, dbHelper)
+    fun provideCatRepository(database: AppDatabase): CatRepository {
+        return CatRepository(database)
     }
 }

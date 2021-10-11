@@ -18,7 +18,7 @@ class MainActivity : ParentActivity() {
 
     @Inject
     lateinit var viewModelFactory: CatsViewModelFactory
-    private lateinit var viewModel:CatsViewModel
+    private lateinit var viewModel: CatsViewModel
 
 
     override fun onCreate(savedInstanceState: Bundle?) {

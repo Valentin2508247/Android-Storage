@@ -1,16 +1,12 @@
 package com.valentin.storage.viewmodels
 
 import android.content.SharedPreferences
-import android.database.sqlite.SQLiteDatabase
-import android.database.sqlite.SQLiteException
 import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.valentin.storage.models.AppDatabase
 import com.valentin.storage.models.Cat
-import com.valentin.storage.models.DatabaseOpenHelper
 import com.valentin.storage.repository.CatRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -22,7 +18,7 @@ class CatsViewModel(
     ): ViewModel() {
 
     var name: String? = ""
-    var age: Int? = -1
+    var age: Int?
     var breed: String? = ""
 
     private val preferenceChangeListener = SharedPreferences.OnSharedPreferenceChangeListener {
@@ -44,7 +40,12 @@ class CatsViewModel(
             }
             "age" -> {
                 val value = pref.getString(key, "")
-                age = value?.toInt()
+                value?.let {
+                    if (value == "")
+                        age = null
+                    else
+                        age = value.toInt()
+                }
                 Log.d(TAG, "Age pref: $value")
             }
             "breed" -> {
@@ -62,26 +63,20 @@ class CatsViewModel(
         else
             repository.useSQLite()
         name = preferences.getString("name", "")
-        age = preferences.getString("age", "-1")?.toInt()
+        val value = preferences.getString("age", "")
+        age = null
+        value?.let {
+            if (value == "")
+                age = null
+            else
+                age = value.toInt()
+        }
         breed = preferences.getString("breed", "")
         preferences.registerOnSharedPreferenceChangeListener(preferenceChangeListener)
     }
 
     val cats: LiveData<List<Cat>>
-        get() = repository.readCats()
-//    by lazy {
-//        val liveData = repository.readCats()
-//        liveData.ma
-//
-//        liveData
-//    }
-//    init {
-//        viewModelScope.launch {
-//            cats = repository.readCats().
-//        }
-//    }
-
-
+        get() = repository.readCats(name, age, breed)
 
     fun addCat(cat: Cat) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -129,19 +124,4 @@ class CatsViewModelFactory @Inject constructor(
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }
-}
-
-fun main() {
-    var a = 7
-    try {
-        println("Try")
-        //a / 0
-    }
-    catch (ex: Exception) {
-        println("Catch")
-    }
-    finally {
-        println("Finally")
-    }
-
 }
